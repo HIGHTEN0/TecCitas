@@ -1,0 +1,54 @@
+ TecCitas - Guía Rápida
+
+Configuración Inicial
+
+git clone [url-del-repositorio]
+cd TecCitas
+npm install
+
+Comandos Útiles
+# Iniciar app
+npx expo start
+
+# Con cache limpia (si hay problemas)
+npx expo start --clear
+
+# En Android/iOS
+npx expo start --android
+npx expo start --ios
+
+🐛 Problemas Comunes
+"Firebase already initialized": npx expo start --clear
+
+Error de Worklets: Usar ChatScreenSimple.js en lugar de ChatScreen.js
+
+App no actualiza: Cerrar y reabrir Expo Go
+
+📝 Flujo de Usuario
+Registro (solo correo @delicias.tecnm.mx)
+
+Verificar email
+
+Crear perfil con foto
+
+Dar like/dislike en Home
+
+Chatear con matches
+
+🔐 Datos de Firebase
+Colección users: Perfiles de usuarios
+
+Colección matches: Matches entre usuarios
+
+Subcolección messages: Chat
+
+🤝 Para Contribuir
+Crear rama: git checkout -b mi-feature
+
+Hacer cambios
+
+Commit: git commit -m 'feat: descripción'
+
+Push: git push origin mi-feature
+
+Abrir Pull Request
