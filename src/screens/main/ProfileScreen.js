@@ -9,23 +9,25 @@ import {
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db, auth } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { deleteUserAccount } from '../../services/deleteAccount';
 
 // 🔑 Tu API key de ImgBB
-const IMGBB_API_KEY = '1d91d20efe78d213c5a09391aa216d71'; 
+const IMGBB_API_KEY = '1d91d20efe78d213c5a09391aa216d71'; // Reemplaza con tu key
 
 const CAREERS = [
   'Ing. Sistemas Computacionales',
   'Ing. Industrial',
   'Ing. Electromecánica',
   'Ing. Gestión Empresarial',
-  'Ing. Energías Renovables',
   'Ing. Civil',
+  'Ing. Energías Renovables',
 ];
 
 export default function ProfileScreen() {
@@ -33,6 +35,9 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showCareerModal, setShowCareerModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Estados para edición
   const [name, setName] = useState(userProfile?.name || '');
@@ -170,10 +175,53 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmText !== 'ELIMINAR') {
+      Alert.alert('Error', 'Escribe ELIMINAR para confirmar');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteUserAccount();
+      // La app automáticamente redirigirá al login porque el usuario ya no existe
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      
+      // Si el error es de reautenticación
+      if (error.code === 'auth/requires-recent-login') {
+        Alert.alert(
+          'Sesión expirada',
+          'Por seguridad, necesitas volver a iniciar sesión antes de eliminar tu cuenta.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Cerrar sesión',
+              onPress: async () => {
+                await signOut(auth);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo eliminar la cuenta. Intenta de nuevo.');
+      }
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+      setDeleteConfirmText('');
+    }
+  };
+
   if (!userProfile) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Cargando perfil...</Text>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <Text style={styles.loadingText}>Cargando perfil...</Text>
       </View>
     );
   }
@@ -290,7 +338,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Email (no editable) */}
+        {/* Email */}
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>CORREO INSTITUCIONAL</Text>
           <Text style={[styles.fieldValue, styles.emailText]}>
@@ -299,7 +347,7 @@ export default function ProfileScreen() {
           <Text style={styles.verifiedBadge}>✓ Verificado</Text>
         </View>
 
-        {/* Género e intereses */}
+        {/* Género */}
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>GÉNERO</Text>
           <Text style={styles.fieldValue}>
@@ -309,6 +357,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
+        {/* Intereses */}
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>ME INTERESAN</Text>
           <Text style={styles.fieldValue}>
@@ -326,17 +375,26 @@ export default function ProfileScreen() {
           onPress={handleSave}
           disabled={loading}
         >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Guardando...' : 'Guardar cambios'}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.saveButtonText}>Guardar cambios</Text>
+          )}
         </TouchableOpacity>
       )}
 
-      {/* Cerrar sesión */}
+      {/* Acciones */}
       {!editing && (
         <View style={styles.actionsSection}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>🚪 Cerrar sesión</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.deleteAccountButton} 
+            onPress={handleDeleteAccount}
+          >
+            <Text style={styles.deleteAccountButtonText}>🗑️ Eliminar mi cuenta</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -395,6 +453,75 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* Modal de confirmación de eliminación */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalIcon}>⚠️</Text>
+            <Text style={styles.deleteModalTitle}>Eliminar cuenta</Text>
+            <Text style={styles.deleteModalText}>
+              Esta acción es <Text style={styles.boldText}>permanente</Text> y no se puede deshacer.
+            </Text>
+            <Text style={styles.deleteModalText}>
+              Se eliminarán:
+            </Text>
+            <View style={styles.deleteList}>
+              <Text style={styles.deleteListItem}>• Tu perfil y fotos</Text>
+              <Text style={styles.deleteListItem}>• Todos tus matches</Text>
+              <Text style={styles.deleteListItem}>• Todas tus conversaciones</Text>
+              <Text style={styles.deleteListItem}>• Tu cuenta de acceso</Text>
+            </View>
+
+            <Text style={styles.deleteModalConfirmText}>
+              Escribe <Text style={styles.boldText}>ELIMINAR</Text> para confirmar:
+            </Text>
+            <TextInput
+              style={styles.deleteConfirmInput}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder="ELIMINAR"
+              placeholderTextColor="#ccc"
+              autoCapitalize="characters"
+            />
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+                disabled={deleting}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.deleteModalConfirmButton,
+                  deleteConfirmText !== 'ELIMINAR' && styles.deleteModalConfirmDisabled,
+                ]}
+                onPress={confirmDeleteAccount}
+                disabled={deleteConfirmText !== 'ELIMINAR' || deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.deleteModalConfirmButtonText}>
+                    Eliminar cuenta
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={{ height: 50 }} />
     </ScrollView>
   );
@@ -409,6 +536,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
   },
   header: {
     flexDirection: 'row',
@@ -544,6 +676,7 @@ const styles = StyleSheet.create({
   actionsSection: {
     marginTop: 30,
     paddingHorizontal: 20,
+    gap: 15,
   },
   logoutButton: {
     backgroundColor: '#f5f5f5',
@@ -552,6 +685,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  deleteAccountButton: {
+    backgroundColor: '#fff5f5',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffcccc',
+  },
+  deleteAccountButtonText: {
     fontSize: 16,
     color: '#FF6B6B',
     fontWeight: '600',
@@ -576,6 +722,8 @@ const styles = StyleSheet.create({
     color: '#ccc',
     marginTop: 5,
   },
+
+  // Modal de carrera
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -633,5 +781,101 @@ const styles = StyleSheet.create({
   modalCloseText: {
     fontSize: 16,
     color: '#999',
+  },
+
+  // Modal de eliminación
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    width: '100%',
+    maxWidth: 400,
+  },
+  deleteModalIcon: {
+    fontSize: 50,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  deleteModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  deleteModalText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  boldText: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  deleteList: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 15,
+  },
+  deleteListItem: {
+    fontSize: 14,
+    color: '#666',
+    marginVertical: 3,
+  },
+  deleteModalConfirmText: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  deleteConfirmInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 15,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#ddd',
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+  },
+  deleteModalConfirmDisabled: {
+    backgroundColor: '#ffcccc',
+  },
+  deleteModalConfirmButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
   },
 });

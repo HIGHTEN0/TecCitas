@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "280909178530",
+    "project_id": "tecdeliciasdate",
+    "storage_bucket": "tecdeliciasdate.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280909178530:android:02096ca9a3db6abb9659fb",
+        "android_client_info": {
+          "package_name": "com.tecdeliciasdates"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "280909178530-0s7kr6j0ggtn9up4j9f6u0frbkkt75kl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEHL7EHHWlqqduvJ1QjXD1Eu6_GkgeiyA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "280909178530-0s7kr6j0ggtn9up4j9f6u0frbkkt75kl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
