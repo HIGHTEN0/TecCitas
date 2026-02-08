@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,24 @@ import { useAuth } from '../../context/AuthContext';
 export default function VerifyEmailScreen() {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleResendEmail = async () => {
+    if (resendCooldown > 0 || sending) return;
+
     setSending(true);
     try {
+      setResendCooldown(60);
       await sendEmailVerification(user);
       Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada');
     } catch (error) {
@@ -30,7 +44,9 @@ export default function VerifyEmailScreen() {
     try {
       await user.reload();
       if (user.emailVerified) {
-        Alert.alert('¡Verificado!', 'Tu correo ha sido verificado');
+        Alert.alert('¡Verificado!', 'Tu correo ha sido verificado', [
+          { text: 'OK', onPress: () => handleLogout },
+        ]);
       } else {
         Alert.alert('Aún no verificado', 'Por favor verifica tu correo institucional');
       }
@@ -63,10 +79,14 @@ export default function VerifyEmailScreen() {
         <TouchableOpacity
           style={[styles.button, styles.buttonSecondary]}
           onPress={handleResendEmail}
-          disabled={sending}
+          disabled={sending || resendCooldown > 0}
         >
           <Text style={styles.buttonTextSecondary}>
-            {sending ? 'Enviando...' : 'Reenviar correo'}
+            {sending
+              ? 'Enviando...'
+              : resendCooldown > 0
+              ? `Reenviar en ${resendCooldown}s`
+              : 'Reenviar correo'}
           </Text>
         </TouchableOpacity>
 

@@ -11,6 +11,7 @@ import {
   TextInput,
   FlatList,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import {
@@ -34,6 +35,7 @@ export default function ChatScreen({ route, navigation }) {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef(null);
 
   const currentUser = auth.currentUser;
@@ -130,6 +132,21 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [messages]);
 
+  // Detectar teclado para ajustar offset
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Enviar mensaje
   const sendMessage = async () => {
     if (!auth.currentUser || !inputText.trim() || sending) return;
@@ -157,7 +174,7 @@ export default function ChatScreen({ route, navigation }) {
       // 🔔 ENVIAR NOTIFICACIÓN AL OTRO USUARIO VIA BACKEND
       const otherUserDoc = await getDoc(doc(db, 'users', otherUserId));
       const otherUserData = otherUserDoc.data();
-      
+
       if (otherUserData?.pushToken) {
         sendMessageNotification(
           otherUserData.pushToken,
@@ -190,10 +207,10 @@ export default function ChatScreen({ route, navigation }) {
   // Renderizar mensaje
   const renderMessage = ({ item, index }) => {
     const isMyMessage = item.senderId === currentUser.uid;
-    const showDate = index === 0 || 
-      (messages[index - 1] && 
-       new Date(item.createdAt).toDateString() !== 
-       new Date(messages[index - 1].createdAt).toDateString());
+    const showDate = index === 0 ||
+      (messages[index - 1] &&
+        new Date(item.createdAt).toDateString() !==
+        new Date(messages[index - 1].createdAt).toDateString());
 
     return (
       <View>
@@ -251,9 +268,10 @@ export default function ChatScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : (keyboardVisible ? 100 : 0)}
     >
+
       {/* Lista de mensajes */}
       <FlatList
         ref={flatListRef}
@@ -269,14 +287,18 @@ export default function ChatScreen({ route, navigation }) {
       />
 
       {/* Input de mensaje */}
+
       <View style={styles.inputContainer}>
+
         <TextInput
           style={styles.textInput}
           placeholder="Escribe un mensaje..."
           placeholderTextColor="#999"
           value={inputText}
           onChangeText={setInputText}
+          onFocus={() => { }}
           multiline
+
           maxLength={500}
         />
         <TouchableOpacity
@@ -289,7 +311,9 @@ export default function ChatScreen({ route, navigation }) {
         >
           <Text style={styles.sendButtonText}>➤</Text>
         </TouchableOpacity>
+
       </View>
+
 
       {/* Report Modal */}
       <ReportModal
@@ -308,7 +332,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  
+
   // Header
   headerTitle: {
     flexDirection: 'row',

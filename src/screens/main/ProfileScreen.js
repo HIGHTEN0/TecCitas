@@ -10,6 +10,9 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -38,6 +41,7 @@ export default function ProfileScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Estados para edición
   const [name, setName] = useState(userProfile?.name || '');
@@ -71,7 +75,7 @@ export default function ProfileScreen() {
 
     try {
       console.log('📤 Subiendo nueva foto...');
-      
+
       const formData = new FormData();
       formData.append('image', newPhoto.base64);
       formData.append('name', `teccitas_${user.uid}_${Date.now()}`);
@@ -116,7 +120,7 @@ export default function ProfileScreen() {
     setLoading(true);
     try {
       let photoURL = userProfile.photoURL;
-      
+
       if (newPhoto) {
         photoURL = await uploadImageToImgBB();
       }
@@ -191,7 +195,7 @@ export default function ProfileScreen() {
       // La app automáticamente redirigirá al login porque el usuario ya no existe
     } catch (error) {
       console.error('Error deleting account:', error);
-      
+
       // Si el error es de reautenticación
       if (error.code === 'auth/requires-recent-login') {
         Alert.alert(
@@ -217,6 +221,7 @@ export default function ProfileScreen() {
     }
   };
 
+
   if (!userProfile) {
     return (
       <View style={styles.loadingContainer}>
@@ -227,303 +232,311 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Perfil</Text>
-        {!editing ? (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Mi Perfill</Text>
+          {!editing ? (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => setEditing(true)}
+            >
+              <Text style={styles.editButtonText}>Editar</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Foto de perfil */}
+        <View style={styles.photoSection}>
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => setEditing(true)}
+            onPress={editing ? pickImage : null}
+            activeOpacity={editing ? 0.7 : 1}
           >
-            <Text style={styles.editButtonText}>Editar</Text>
+            <Image
+              source={{ uri: newPhoto?.uri || userProfile.photoURL }}
+              style={styles.profilePhoto}
+            />
+            {editing && (
+              <View style={styles.photoOverlay}>
+                <Text style={styles.photoOverlayText}>📷</Text>
+                <Text style={styles.photoOverlayLabel}>Cambiar</Text>
+              </View>
+            )}
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </View>
+
+        {/* Info del perfil */}
+        <View style={styles.infoSection}>
+          {/* Nombre */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>NOMBRE</Text>
+            {editing ? (
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Tu nombre"
+                placeholderTextColor="#999"
+              />
+            ) : (
+              <Text style={styles.fieldValue}>{userProfile.name}</Text>
+            )}
+          </View>
+
+          {/* Edad */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>EDAD</Text>
+            {editing ? (
+              <TextInput
+                style={styles.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Tu edad"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            ) : (
+              <Text style={styles.fieldValue}>{userProfile.age} años</Text>
+            )}
+          </View>
+
+          {/* Carrera */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>CARRERA</Text>
+            {editing ? (
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => setShowCareerModal(true)}
+              >
+                <Text style={[styles.selectButtonText, !career && styles.placeholder]}>
+                  {career || 'Selecciona tu carrera'}
+                </Text>
+                <Text style={styles.selectArrow}>▼</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.fieldValue}>{userProfile.career}</Text>
+            )}
+          </View>
+
+          {/* Bio */}
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>SOBRE MÍ</Text>
+            {editing ? (
+              <TextInput
+                style={[styles.input, styles.bioInput]}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Cuéntanos sobre ti..."
+                placeholderTextColor="#999"
+                multiline
+                maxLength={200}
+              />
+            ) : (
+              <Text style={styles.fieldValue}>
+                {userProfile.bio || 'Sin descripción'}
+              </Text>
+            )}
+          </View>
+
+
+          {/* Email */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>CORREO INSTITUCIONAL</Text>
+            <Text style={[styles.fieldValue, styles.emailText]}>
+              {userProfile.email}
+            </Text>
+            <Text style={styles.verifiedBadge}>✓ Verificado</Text>
+          </View>
+
+          {/* Género */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>GÉNERO</Text>
+            <Text style={styles.fieldValue}>
+              {userProfile.gender === 'male' && '👨 Hombre'}
+              {userProfile.gender === 'female' && '👩 Mujer'}
+              {userProfile.gender === 'other' && '🌈 Otro'}
+            </Text>
+          </View>
+
+          {/* Intereses */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>ME INTERESAN</Text>
+            <Text style={styles.fieldValue}>
+              {userProfile.interestedIn === 'male' && '👨 Hombres'}
+              {userProfile.interestedIn === 'female' && '👩 Mujeres'}
+              {userProfile.interestedIn === 'both' && '💕 Ambos'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Botón guardar */}
+        {editing && (
+          <TouchableOpacity
+            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.saveButtonText}>Guardar cambios</Text>
+            )}
           </TouchableOpacity>
         )}
-      </View>
 
-      {/* Foto de perfil */}
-      <View style={styles.photoSection}>
-        <TouchableOpacity
-          onPress={editing ? pickImage : null}
-          activeOpacity={editing ? 0.7 : 1}
-        >
-          <Image
-            source={{ uri: newPhoto?.uri || userProfile.photoURL }}
-            style={styles.profilePhoto}
-          />
-          {editing && (
-            <View style={styles.photoOverlay}>
-              <Text style={styles.photoOverlayText}>📷</Text>
-              <Text style={styles.photoOverlayLabel}>Cambiar</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Info del perfil */}
-      <View style={styles.infoSection}>
-        {/* Nombre */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>NOMBRE</Text>
-          {editing ? (
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Tu nombre"
-              placeholderTextColor="#999"
-            />
-          ) : (
-            <Text style={styles.fieldValue}>{userProfile.name}</Text>
-          )}
-        </View>
-
-        {/* Edad */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>EDAD</Text>
-          {editing ? (
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              placeholder="Tu edad"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-              maxLength={2}
-            />
-          ) : (
-            <Text style={styles.fieldValue}>{userProfile.age} años</Text>
-          )}
-        </View>
-
-        {/* Carrera */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>CARRERA</Text>
-          {editing ? (
-            <TouchableOpacity
-              style={styles.selectButton}
-              onPress={() => setShowCareerModal(true)}
-            >
-              <Text style={[styles.selectButtonText, !career && styles.placeholder]}>
-                {career || 'Selecciona tu carrera'}
-              </Text>
-              <Text style={styles.selectArrow}>▼</Text>
+        {/* Acciones */}
+        {!editing && (
+          <View style={styles.actionsSection}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Text style={styles.logoutButtonText}>🚪 Cerrar sesión</Text>
             </TouchableOpacity>
-          ) : (
-            <Text style={styles.fieldValue}>{userProfile.career}</Text>
-          )}
+
+            <TouchableOpacity
+              style={styles.deleteAccountButton}
+              onPress={handleDeleteAccount}
+            >
+              <Text style={styles.deleteAccountButtonText}>🗑️ Eliminar mi cuenta</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Info de la app */}
+        <View style={styles.appInfo}>
+          <Text style={styles.appInfoText}>💘 TecCitas</Text>
+          <Text style={styles.appVersion}>Versión 1.0.0</Text>
+          <Text style={styles.appCredits}>Hecho con ❤️ en TecNM Delicias</Text>
         </View>
 
-        {/* Bio */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>SOBRE MÍ</Text>
-          {editing ? (
-            <TextInput
-              style={[styles.input, styles.bioInput]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Cuéntanos sobre ti..."
-              placeholderTextColor="#999"
-              multiline
-              maxLength={200}
-            />
-          ) : (
-            <Text style={styles.fieldValue}>
-              {userProfile.bio || 'Sin descripción'}
-            </Text>
-          )}
-        </View>
-
-        {/* Email */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>CORREO INSTITUCIONAL</Text>
-          <Text style={[styles.fieldValue, styles.emailText]}>
-            {userProfile.email}
-          </Text>
-          <Text style={styles.verifiedBadge}>✓ Verificado</Text>
-        </View>
-
-        {/* Género */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>GÉNERO</Text>
-          <Text style={styles.fieldValue}>
-            {userProfile.gender === 'male' && '👨 Hombre'}
-            {userProfile.gender === 'female' && '👩 Mujer'}
-            {userProfile.gender === 'other' && '🌈 Otro'}
-          </Text>
-        </View>
-
-        {/* Intereses */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>ME INTERESAN</Text>
-          <Text style={styles.fieldValue}>
-            {userProfile.interestedIn === 'male' && '👨 Hombres'}
-            {userProfile.interestedIn === 'female' && '👩 Mujeres'}
-            {userProfile.interestedIn === 'both' && '💕 Ambos'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Botón guardar */}
-      {editing && (
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
+        {/* Modal de selección de carrera */}
+        <Modal
+          visible={showCareerModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCareerModal(false)}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.saveButtonText}>Guardar cambios</Text>
-          )}
-        </TouchableOpacity>
-      )}
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Selecciona tu carrera</Text>
 
-      {/* Acciones */}
-      {!editing && (
-        <View style={styles.actionsSection}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>🚪 Cerrar sesión</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.deleteAccountButton} 
-            onPress={handleDeleteAccount}
-          >
-            <Text style={styles.deleteAccountButtonText}>🗑️ Eliminar mi cuenta</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Info de la app */}
-      <View style={styles.appInfo}>
-        <Text style={styles.appInfoText}>💘 TecCitas</Text>
-        <Text style={styles.appVersion}>Versión 1.0.0</Text>
-        <Text style={styles.appCredits}>Hecho con ❤️ en TecNM Delicias</Text>
-      </View>
-
-      {/* Modal de selección de carrera */}
-      <Modal
-        visible={showCareerModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCareerModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona tu carrera</Text>
-            
-            <ScrollView style={styles.modalOptions}>
-              {CAREERS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[
-                    styles.modalOption,
-                    career === c && styles.modalOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setCareer(c);
-                    setShowCareerModal(false);
-                  }}
-                >
-                  <Text
+              <ScrollView style={styles.modalOptions}>
+                {CAREERS.map((c) => (
+                  <TouchableOpacity
+                    key={c}
                     style={[
-                      styles.modalOptionText,
-                      career === c && styles.modalOptionTextSelected,
+                      styles.modalOption,
+                      career === c && styles.modalOptionSelected,
                     ]}
+                    onPress={() => {
+                      setCareer(c);
+                      setShowCareerModal(false);
+                    }}
                   >
-                    {c}
-                  </Text>
-                  {career === c && <Text style={styles.checkmark}>✓</Text>}
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        career === c && styles.modalOptionTextSelected,
+                      ]}
+                    >
+                      {c}
+                    </Text>
+                    {career === c && <Text style={styles.checkmark}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowCareerModal(false)}
+              >
+                <Text style={styles.modalCloseText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal de confirmación de eliminación */}
+        <Modal
+          visible={showDeleteModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDeleteModal(false)}
+        >
+          <View style={styles.deleteModalOverlay}>
+            <View style={styles.deleteModalContent}>
+              <Text style={styles.deleteModalIcon}>⚠️</Text>
+              <Text style={styles.deleteModalTitle}>Eliminar cuenta</Text>
+              <Text style={styles.deleteModalText}>
+                Esta acción es <Text style={styles.boldText}>permanente</Text> y no se puede deshacer.
+              </Text>
+              <Text style={styles.deleteModalText}>
+                Se eliminarán:
+              </Text>
+              <View style={styles.deleteList}>
+                <Text style={styles.deleteListItem}>• Tu perfil y fotos</Text>
+                <Text style={styles.deleteListItem}>• Todos tus matches</Text>
+                <Text style={styles.deleteListItem}>• Todas tus conversaciones</Text>
+                <Text style={styles.deleteListItem}>• Tu cuenta de acceso</Text>
+              </View>
+
+              <Text style={styles.deleteModalConfirmText}>
+                Escribe <Text style={styles.boldText}>ELIMINAR</Text> para confirmar:
+              </Text>
+              <TextInput
+                style={styles.deleteConfirmInput}
+                value={deleteConfirmText}
+                onChangeText={setDeleteConfirmText}
+                placeholder="ELIMINAR"
+                placeholderTextColor="#ccc"
+                autoCapitalize="characters"
+              />
+
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity
+                  style={styles.deleteModalCancelButton}
+                  onPress={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmText('');
+                  }}
+                  disabled={deleting}
+                >
+                  <Text style={styles.deleteModalCancelText}>Cancelar</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
 
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowCareerModal(false)}
-            >
-              <Text style={styles.modalCloseText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal de confirmación de eliminación */}
-      <Modal
-        visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDeleteModal(false)}
-      >
-        <View style={styles.deleteModalOverlay}>
-          <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalIcon}>⚠️</Text>
-            <Text style={styles.deleteModalTitle}>Eliminar cuenta</Text>
-            <Text style={styles.deleteModalText}>
-              Esta acción es <Text style={styles.boldText}>permanente</Text> y no se puede deshacer.
-            </Text>
-            <Text style={styles.deleteModalText}>
-              Se eliminarán:
-            </Text>
-            <View style={styles.deleteList}>
-              <Text style={styles.deleteListItem}>• Tu perfil y fotos</Text>
-              <Text style={styles.deleteListItem}>• Todos tus matches</Text>
-              <Text style={styles.deleteListItem}>• Todas tus conversaciones</Text>
-              <Text style={styles.deleteListItem}>• Tu cuenta de acceso</Text>
-            </View>
-
-            <Text style={styles.deleteModalConfirmText}>
-              Escribe <Text style={styles.boldText}>ELIMINAR</Text> para confirmar:
-            </Text>
-            <TextInput
-              style={styles.deleteConfirmInput}
-              value={deleteConfirmText}
-              onChangeText={setDeleteConfirmText}
-              placeholder="ELIMINAR"
-              placeholderTextColor="#ccc"
-              autoCapitalize="characters"
-            />
-
-            <View style={styles.deleteModalButtons}>
-              <TouchableOpacity
-                style={styles.deleteModalCancelButton}
-                onPress={() => {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText('');
-                }}
-                disabled={deleting}
-              >
-                <Text style={styles.deleteModalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.deleteModalConfirmButton,
-                  deleteConfirmText !== 'ELIMINAR' && styles.deleteModalConfirmDisabled,
-                ]}
-                onPress={confirmDeleteAccount}
-                disabled={deleteConfirmText !== 'ELIMINAR' || deleting}
-              >
-                {deleting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.deleteModalConfirmButtonText}>
-                    Eliminar cuenta
-                  </Text>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deleteModalConfirmButton,
+                    deleteConfirmText !== 'ELIMINAR' && styles.deleteModalConfirmDisabled,
+                  ]}
+                  onPress={confirmDeleteAccount}
+                  disabled={deleteConfirmText !== 'ELIMINAR' || deleting}
+                >
+                  {deleting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.deleteModalConfirmButtonText}>
+                      Eliminar cuenta
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      <View style={{ height: 50 }} />
-    </ScrollView>
+        <View style={{ height: 50 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

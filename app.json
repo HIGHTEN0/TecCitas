@@ -23,6 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF6B6B"
       },
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.tecdeliciasdates",
       "googleServicesFile": "./google-services.json"
     },

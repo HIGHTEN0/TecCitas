@@ -14,6 +14,7 @@ import {
   where,
   onSnapshot,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import Loading from '../../components/Loading';
@@ -22,6 +23,61 @@ export default function MatchesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const buildMatchesData = (docs, currentUserId) => {
+    const matchesData = docs.map((doc) => {
+      const data = doc.data();
+      const otherUserId = data.users.find((id) => id !== currentUserId);
+      const otherUserData = data.usersData?.[otherUserId];
+
+      return {
+        id: doc.id,
+        otherUserId,
+        otherUserName: otherUserData?.name || 'Usuario',
+        otherUserPhoto: otherUserData?.photoURL,
+        lastMessage: data.lastMessage,
+        lastMessageTime: data.lastMessageTime?.toDate(),
+        createdAt: data.createdAt?.toDate(),
+      };
+    });
+
+    matchesData.sort((a, b) => {
+      const timeA = a.lastMessageTime || a.createdAt || new Date(0);
+      const timeB = b.lastMessageTime || b.createdAt || new Date(0);
+      return timeB - timeA;
+    });
+
+    return matchesData;
+  };
+
+  const loadMatches = async () => {
+    if (!auth.currentUser) {
+      console.log('⚠️ No hay usuario, saltando recarga de matches');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const currentUserId = auth.currentUser.uid;
+
+    try {
+      const matchesQuery = query(
+        collection(db, 'matches'),
+        where('users', 'array-contains', currentUserId)
+      );
+
+      const snapshot = await getDocs(matchesQuery);
+      const matchesData = buildMatchesData(snapshot.docs, currentUserId);
+
+      setMatches(matchesData);
+      setLoading(false);
+    } catch (error) {
+      console.error('❌ Error reloading matches:', error);
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
   let unsubscribe = null;
@@ -51,27 +107,7 @@ export default function MatchesScreen({ navigation }) {
           return;
         }
         
-        const matchesData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const otherUserId = data.users.find((id) => id !== currentUserId);
-          const otherUserData = data.usersData?.[otherUserId];
-
-          return {
-            id: doc.id,
-            otherUserId,
-            otherUserName: otherUserData?.name || 'Usuario',
-            otherUserPhoto: otherUserData?.photoURL,
-            lastMessage: data.lastMessage,
-            lastMessageTime: data.lastMessageTime?.toDate(),
-            createdAt: data.createdAt?.toDate(),
-          };
-        });
-
-        matchesData.sort((a, b) => {
-          const timeA = a.lastMessageTime || a.createdAt || new Date(0);
-          const timeB = b.lastMessageTime || b.createdAt || new Date(0);
-          return timeB - timeA;
-        });
+        const matchesData = buildMatchesData(snapshot.docs, currentUserId);
 
         console.log(`✅ Encontrados ${matchesData.length} matches`);
         setMatches(matchesData);
@@ -134,6 +170,7 @@ export default function MatchesScreen({ navigation }) {
 
   const onRefresh = () => {
     setRefreshing(true);
+    loadMatches();
   };
 
   const renderNewMatches = () => {
@@ -246,7 +283,7 @@ export default function MatchesScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Matches</Text>
+        <Text style={styles.headerTitle}>Matches halcones</Text>
         <Text style={styles.headerSubtitle}>
           {matches.length} {matches.length === 1 ? 'match' : 'matches'}
         </Text>

@@ -8,6 +8,9 @@ import {
   Alert,
   ScrollView,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc } from 'firebase/firestore';
@@ -66,7 +69,7 @@ export default function ProfileSetupScreen() {
 
     try {
       console.log('📤 Subiendo imagen a ImgBB...');
-      
+
       const formData = new FormData();
       formData.append('image', image.base64);
       formData.append('name', `teccitas_${user.uid}_${Date.now()}`);
@@ -126,7 +129,7 @@ export default function ProfileSetupScreen() {
     try {
       // Subir imagen a ImgBB
       const photoURL = await uploadImageToImgBB();
-      
+
       if (!photoURL) {
         setLoading(false);
         return;
@@ -158,127 +161,133 @@ export default function ProfileSetupScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Crea tu perfil</Text>
-        <Text style={styles.subtitle}>Cuéntanos sobre ti</Text>
-      </View>
-    
-      {/* Foto de perfil */}
-      <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-        {image ? (
-          <Image source={{ uri: image.uri }} style={styles.image} />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>📷</Text>
-            <Text style={styles.imagePlaceholderLabel}>Agregar foto</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Crea tu perfil</Text>
+          <Text style={styles.subtitle}>Cuéntanos sobre ti</Text>
+        </View>
 
-      {/* Nombre */}
-      <Text style={styles.label}>Nombre</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="¿Cómo te llamas?"
-        placeholderTextColor="#999"
-        value={name}
-        onChangeText={setName}
-      />
+        {/* Foto de perfil */}
+        <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+          {image ? (
+            <Image source={{ uri: image.uri }} style={styles.image} />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>📷</Text>
+              <Text style={styles.imagePlaceholderLabel}>Agregar foto</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
-      {/* Edad */}
-      <Text style={styles.label}>Edad</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Tu edad"
-        placeholderTextColor="#999"
-        value={age}
-        onChangeText={setAge}
-        keyboardType="numeric"
-        maxLength={2}
-      />
+        {/* Nombre */}
+        <Text style={styles.label}>Nombre</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="¿Cómo te llamas?"
+          placeholderTextColor="#999"
+          value={name}
+          onChangeText={setName}
+        />
 
-      {/* Carrera */}
-      <Text style={styles.label}>Carrera</Text>
-      <View style={styles.optionsContainer}>
-        {CAREERS.map((c) => (
-          <TouchableOpacity
-            key={c}
-            style={[styles.option, career === c && styles.optionSelected]}
-            onPress={() => setCareer(c)}
-          >
-            <Text style={[styles.optionText, career === c && styles.optionTextSelected]}>
-              {c}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Edad */}
+        <Text style={styles.label}>Edad</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Tu edad"
+          placeholderTextColor="#999"
+          value={age}
+          onChangeText={setAge}
+          keyboardType="numeric"
+          maxLength={2}
+        />
 
-      {/* Género */}
-      <Text style={styles.label}>Soy</Text>
-      <View style={styles.genderContainer}>
-        {[
-          { value: 'male', label: '👨 Hombre' },
-          { value: 'female', label: '👩 Mujer' },
-          { value: 'other', label: '🌈 Otro' },
-        ].map((g) => (
-          <TouchableOpacity
-            key={g.value}
-            style={[styles.genderOption, gender === g.value && styles.optionSelected]}
-            onPress={() => setGender(g.value)}
-          >
-            <Text style={[styles.optionText, gender === g.value && styles.optionTextSelected]}>
-              {g.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Carrera */}
+        <Text style={styles.label}>Carrera</Text>
+        <View style={styles.optionsContainer}>
+          {CAREERS.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.option, career === c && styles.optionSelected]}
+              onPress={() => setCareer(c)}
+            >
+              <Text style={[styles.optionText, career === c && styles.optionTextSelected]}>
+                {c}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Interesado en */}
-      <Text style={styles.label}>Me interesan</Text>
-      <View style={styles.genderContainer}>
-        {[
-          { value: 'male', label: '👨 Hombres' },
-          { value: 'female', label: '👩 Mujeres' },
-          { value: 'both', label: '💕 Ambos' },
-        ].map((g) => (
-          <TouchableOpacity
-            key={g.value}
-            style={[styles.genderOption, interestedIn === g.value && styles.optionSelected]}
-            onPress={() => setInterestedIn(g.value)}
-          >
-            <Text style={[styles.optionText, interestedIn === g.value && styles.optionTextSelected]}>
-              {g.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Género */}
+        <Text style={styles.label}>Soy</Text>
+        <View style={styles.genderContainer}>
+          {[
+            { value: 'male', label: '👨 Hombre' },
+            { value: 'female', label: '👩 Mujer' },
+            { value: 'other', label: '🌈 Otro' },
+          ].map((g) => (
+            <TouchableOpacity
+              key={g.value}
+              style={[styles.genderOption, gender === g.value && styles.optionSelected]}
+              onPress={() => setGender(g.value)}
+            >
+              <Text style={[styles.optionText, gender === g.value && styles.optionTextSelected]}>
+                {g.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Bio */}
-      <Text style={styles.label}>Sobre mí (opcional)</Text>
-      <TextInput
-        style={[styles.input, styles.bioInput]}
-        placeholder="Cuéntanos algo interesante..."
-        placeholderTextColor="#999"
-        value={bio}
-        onChangeText={setBio}
-        multiline
-        maxLength={200}
-      />
+        {/* Interesado en */}
+        <Text style={styles.label}>Me interesan</Text>
+        <View style={styles.genderContainer}>
+          {[
+            { value: 'male', label: '👨 Hombres' },
+            { value: 'female', label: '👩 Mujeres' },
+            { value: 'both', label: '💕 Ambos' },
+          ].map((g) => (
+            <TouchableOpacity
+              key={g.value}
+              style={[styles.genderOption, interestedIn === g.value && styles.optionSelected]}
+              onPress={() => setInterestedIn(g.value)}
+            >
+              <Text style={[styles.optionText, interestedIn === g.value && styles.optionTextSelected]}>
+                {g.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Botón guardar */}
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleSaveProfile}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? 'Guardando...' : 'Crear perfil'}
-        </Text>
-      </TouchableOpacity>
+        {/* Bio */}
+        <Text style={styles.label}>Sobre mí (opcional)</Text>
+        <TextInput
+          style={[styles.input, styles.bioInput]}
+          placeholder="Cuéntanos algo interesante..."
+          placeholderTextColor="#999"
+          value={bio}
+          onChangeText={setBio}
+          multiline
+          maxLength={200}
+        />
 
-      <View style={{ height: 50 }} />
-    </ScrollView>
+        {/* Botón guardar */}
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSaveProfile}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Guardando...' : 'Crear perfil'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 50 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
