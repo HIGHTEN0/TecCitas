@@ -29,8 +29,7 @@ export default function RegisterScreen({ navigation }) {
   const isValidInstitutionalEmail = (email) => {
     const validDomains = [
       '@delicias.tecnm.mx',
-      '@itsdelicias.edu.mx',
-      '@gmail.com' // Optional: allow Gmail for testing purposes
+      //'@gmail.com'
     ];
     return validDomains.some(domain => email.toLowerCase().endsWith(domain));
   };

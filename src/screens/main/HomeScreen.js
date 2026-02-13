@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,21 @@ export default function HomeScreen({ navigation }) {
 
   // Animaciones
   const position = useRef(new Animated.ValueXY()).current;
+  const isAnimatingRef = useRef(false);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // Refs para estado mutable en PanResponder
+  const currentIndexRef = useRef(0);
+  const profilesRef = useRef([]);
+
+  // Sincronizar refs
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    profilesRef.current = profiles;
+  }, [profiles]);
 
   // Rotación basada en posición X
   const rotate = position.x.interpolate({
@@ -71,12 +85,12 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
-  // PanResponder para el swipe manual
+  // PanResponder estático usando refs
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !isAnimating,
+      onStartShouldSetPanResponder: () => !isAnimatingRef.current,
       onMoveShouldSetPanResponder: (_, gesture) => {
-        return !isAnimating && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5);
+        return !isAnimatingRef.current && (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5);
       },
       onPanResponderMove: (_, gesture) => {
         position.setValue({ x: gesture.dx, y: gesture.dy });
@@ -89,6 +103,9 @@ export default function HomeScreen({ navigation }) {
         } else {
           resetPosition();
         }
+      },
+      onPanResponderTerminate: () => {
+        resetPosition();
       },
     })
   ).current;
@@ -164,42 +181,54 @@ export default function HomeScreen({ navigation }) {
   };
 
   // Animar swipe hacia la derecha (LIKE)
+  // Animar swipe hacia la derecha (LIKE)
   const swipeRight = useCallback(() => {
-    if (isAnimating || currentIndex >= profiles.length) return;
+    const currentIdx = currentIndexRef.current;
+    const currentProfiles = profilesRef.current;
+
+    if (isAnimatingRef.current || currentIdx >= currentProfiles.length) return;
 
     setIsAnimating(true);
+    isAnimatingRef.current = true;
     Animated.timing(position, {
       toValue: { x: width + 100, y: 0 },
       duration: 300,
       useNativeDriver: false,
     }).start(() => {
-      handleSwipeRight(currentIndex);
+      handleSwipeRight(currentIdx); // Usamos el índice capturado
       position.setValue({ x: 0, y: 0 });
       setCurrentIndex((prev) => prev + 1);
       setIsAnimating(false);
+      isAnimatingRef.current = false;
     });
-  }, [isAnimating, currentIndex, profiles.length]);
+  }, []);
 
   // Animar swipe hacia la izquierda (NOPE)
+  // Animar swipe hacia la izquierda (NOPE)
   const swipeLeft = useCallback(() => {
-    if (isAnimating || currentIndex >= profiles.length) return;
+    const currentIdx = currentIndexRef.current;
+    const currentProfiles = profilesRef.current;
+
+    if (isAnimatingRef.current || currentIdx >= currentProfiles.length) return;
 
     setIsAnimating(true);
+    isAnimatingRef.current = true;
     Animated.timing(position, {
       toValue: { x: -width - 100, y: 0 },
       duration: 300,
       useNativeDriver: false,
     }).start(() => {
-      handleSwipeLeft(currentIndex);
+      handleSwipeLeft(currentIdx); // Usamos el índice capturado
       position.setValue({ x: 0, y: 0 });
       setCurrentIndex((prev) => prev + 1);
       setIsAnimating(false);
+      isAnimatingRef.current = false;
     });
-  }, [isAnimating, currentIndex, profiles.length]);
+  }, []);
 
   // Manejar Like
   const handleSwipeRight = async (cardIndex) => {
-    const likedProfile = profiles[cardIndex];
+    const likedProfile = profilesRef.current[cardIndex];
     if (!likedProfile) return;
 
     const currentUserId = auth.currentUser.uid;
@@ -232,7 +261,7 @@ export default function HomeScreen({ navigation }) {
 
   // Manejar Nope
   const handleSwipeLeft = async (cardIndex) => {
-    const dislikedProfile = profiles[cardIndex];
+    const dislikedProfile = profilesRef.current[cardIndex];
     if (!dislikedProfile) return;
 
     const currentUserId = auth.currentUser.uid;

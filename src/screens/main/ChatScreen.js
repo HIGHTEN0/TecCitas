@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -35,33 +34,26 @@ export default function ChatScreen({ route, navigation }) {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
 
   const currentUser = auth.currentUser;
 
-  // Escuchar eventos del teclado
+  // Escuchar teclado para hacer scroll
   useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-      }
-    );
-
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
       () => {
-        setKeyboardHeight(0);
+        flatListRef.current?.scrollToEnd({ animated: true });
       }
     );
 
     return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
+      keyboardDidShowListener.remove();
     };
   }, []);
+
+
 
   // Configurar header
   useEffect(() => {
@@ -158,14 +150,7 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [messages]);
 
-  // Scroll cuando aparece el teclado
-  useEffect(() => {
-    if (keyboardHeight > 0 && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [keyboardHeight]);
+
 
   // Enviar mensaje
   const sendMessage = async () => {
@@ -273,63 +258,62 @@ export default function ChatScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 90}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.innerContainer}>
-          {/* Lista de mensajes */}
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessage}
-            contentContainerStyle={[
-              styles.messagesList,
-              messages.length === 0 && styles.emptyList,
-            ]}
-            ListEmptyComponent={renderEmptyChat}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            onContentSizeChange={() => {
-              if (messages.length > 0) {
-                flatListRef.current?.scrollToEnd({ animated: false });
-              }
+      <View style={styles.innerContainer}>
+        {/* Lista de mensajes */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={[
+            styles.messagesList,
+            messages.length === 0 && styles.emptyList,
+          ]}
+          ListEmptyComponent={renderEmptyChat}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
+        />
+
+        {/* Input de mensaje */}
+        <View style={[
+          styles.inputContainer,
+          { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 10 }
+        ]}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Escribe un mensaje..."
+            placeholderTextColor="#999"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            onFocus={() => {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 300);
             }}
           />
-
-          {/* Input de mensaje */}
-          <View style={[
-            styles.inputContainer,
-            { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 10 }
-          ]}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Escribe un mensaje..."
-              placeholderTextColor="#999"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-              onFocus={() => {
-                setTimeout(() => {
-                  flatListRef.current?.scrollToEnd({ animated: true });
-                }, 300);
-              }}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!inputText.trim() || sending) && styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!inputText.trim() || sending}
-            >
-              <Text style={styles.sendButtonText}>➤</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || sending) && styles.sendButtonDisabled,
+            ]}
+            onPress={sendMessage}
+            disabled={!inputText.trim() || sending}
+          >
+            <Text style={styles.sendButtonText}>➤</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
 
       {/* Report Modal */}
       <ReportModal

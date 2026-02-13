@@ -44,9 +44,11 @@ export default function VerifyEmailScreen() {
     try {
       await user.reload();
       if (user.emailVerified) {
-        Alert.alert('¡Verificado!', 'Tu correo ha sido verificado', [
-          { text: 'OK', onPress: () => handleLogout },
-        ]);
+        Alert.alert(
+          '¡Verificado!',
+          'Tu correo ha sido verificado. Inicia sesión para continuar.',
+          [{ text: 'OK', onPress: () => handleLogout() }]
+        );
       } else {
         Alert.alert('Aún no verificado', 'Por favor verifica tu correo institucional');
       }
@@ -85,8 +87,8 @@ export default function VerifyEmailScreen() {
             {sending
               ? 'Enviando...'
               : resendCooldown > 0
-              ? `Reenviar en ${resendCooldown}s`
-              : 'Reenviar correo'}
+                ? `Reenviar en ${resendCooldown}s`
+                : 'Reenviar correo'}
           </Text>
         </TouchableOpacity>
 
