@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>TecCitas</title>
+    <!-- Root reset from react-native-web; we override body overflow below to allow scrolling in PWAs -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+      }
+      /* Allow page scrolling on web/mobile PWAs and ensure root children can scroll */
+      body {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        touch-action: auto;
+      }
+      /* Ensure root and its first child are not height-locked and allow overflow */
+      #root {
+        display: block;
+        min-height: 100%;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      #root > * {
+        height: auto !important;
+        min-height: 100%;
+        overflow: visible !important;
+      }
+    </style>
+    <meta name="description" content="App de citas para la comunidad del Tec">
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root"></div>
+    <script src="/_expo/static/js/web/index.js" defer></script>
+    <script>
+      (function allowScroll(){
+        try{
+          document.documentElement.style.height='auto';
+          document.body.style.height='auto';
+          document.body.style.overflow='auto';
+          document.body.style['-webkit-overflow-scrolling']='touch';
+          document.body.style.touchAction='auto';
+          var s=document.getElementById('expo-reset');
+          if(s){ s.innerHTML = s.innerHTML.replace(/overflow:\\s*hidden;?/g,'overflow:auto;'); }
+          var r=document.getElementById('root');
+          if(r){ r.style.overflow='visible'; r.style.minHeight='auto'; r.style.height='auto'; }
+        }catch(e){}
+        setTimeout(allowScroll,1000);
+      })();
+    </script>
+  </body>
+</html>

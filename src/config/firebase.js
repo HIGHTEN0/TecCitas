@@ -1,9 +1,10 @@
 // firebase.js - VERSIÓN SUPER ROBUSTA
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBEHL7EHHWlqqduvJ1QjXD1Eu6_GkgeiyA",
@@ -29,7 +30,7 @@ export const initializeFirebase = () => {
 
   try {
     console.log('🚀 Inicializando Firebase...');
-    
+
     // Inicializar app
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
@@ -41,10 +42,16 @@ export const initializeFirebase = () => {
 
     // Inicializar auth con persistencia (solo primera vez)
     if (!auth) {
-      auth = initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage)
-      });
-      console.log('🔐 Auth inicializado con persistencia AsyncStorage');
+      if (Platform.OS === 'web') {
+        auth = getAuth(app);
+        auth.setPersistence(browserLocalPersistence);
+        console.log('🌐 Auth inicializado con persistencia Web');
+      } else {
+        auth = initializeAuth(app, {
+          persistence: getReactNativePersistence(AsyncStorage)
+        });
+        console.log('📱 Auth inicializado con persistencia React Native (AsyncStorage)');
+      }
     }
 
     // Inicializar Firestore y Storage
@@ -53,7 +60,7 @@ export const initializeFirebase = () => {
 
     console.log('🎯 Firebase completamente inicializado');
     return { app, auth, db, storage };
-    
+
   } catch (error) {
     console.error('💥 Error fatal al inicializar Firebase:', error);
     throw error;

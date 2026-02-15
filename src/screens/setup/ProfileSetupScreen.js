@@ -163,10 +163,15 @@ export default function ProfileSetupScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Crea tu perfil</Text>
           <Text style={styles.subtitle}>Cuéntanos sobre ti</Text>
@@ -284,7 +289,7 @@ export default function ProfileSetupScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 50 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

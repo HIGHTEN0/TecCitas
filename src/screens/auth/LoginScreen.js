@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View,
@@ -11,7 +11,6 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -51,20 +50,22 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  const passwordRef = useRef(null);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+      >
           <View style={styles.header}>
             <Text style={styles.logo}>💘</Text>
             <Text style={styles.title}>TecCitas</Text>
@@ -81,16 +82,25 @@ export default function LoginScreen({ navigation }) {
               keyboardType="email-address"
               autoCapitalize="none"
               returnKeyType="next"
+              autoComplete="email"
+              textContentType="username"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordRef.current && passwordRef.current.focus()}
             />
 
             <View style={styles.passwordRow}>
               <TextInput
+                ref={passwordRef}
                 style={[styles.input, styles.inputWithIcon]}
                 placeholder="Contraseña"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                returnKeyType="done"
+                autoComplete="password"
+                textContentType="password"
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -126,7 +136,6 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -208,5 +217,8 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#FF6B6B',
     fontWeight: 'bold',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
 });
