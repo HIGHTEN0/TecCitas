@@ -10,11 +10,18 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+} from 'firebase/auth';
 import { auth } from '../../config/firebase';
 
 export default function RegisterScreen({ navigation }) {
@@ -25,6 +32,7 @@ export default function RegisterScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const keyboardTapBehavior = Platform.OS === 'web' ? 'always' : 'handled';
 
   const isValidInstitutionalEmail = (email) => {
     const validDomains = [
@@ -32,6 +40,26 @@ export default function RegisterScreen({ navigation }) {
       //'@gmail.com'
     ];
     return validDomains.some(domain => email.toLowerCase().endsWith(domain));
+  };
+
+  const ensureWebAuthPersistence = async () => {
+    if (Platform.OS !== 'web') return;
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      return;
+    } catch (error) {
+      console.warn('⚠️ No se pudo usar localPersistence, usando sessionPersistence', error);
+    }
+
+    try {
+      await setPersistence(auth, browserSessionPersistence);
+      return;
+    } catch (error) {
+      console.warn('⚠️ No se pudo usar sessionPersistence, usando inMemoryPersistence', error);
+    }
+
+    await setPersistence(auth, inMemoryPersistence);
   };
 
   const handleRegister = async () => {
@@ -61,6 +89,7 @@ export default function RegisterScreen({ navigation }) {
     Keyboard.dismiss();
     setLoading(true);
     try {
+      await ensureWebAuthPersistence();
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await sendEmailVerification(userCredential.user);
 
@@ -77,6 +106,12 @@ export default function RegisterScreen({ navigation }) {
         message = 'Correo electrónico inválido';
       } else if (error.code === 'auth/weak-password') {
         message = 'La contraseña es muy débil';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Sin conexión. Revisa tu internet e intenta de nuevo.';
+      } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
+        message = 'Tu navegador no permite el registro en este modo. Intenta abrirlo en Safari normal (no privado).';
+      } else if (error.code) {
+        message = `No se pudo registrar (${error.code}).`;
       }
       Alert.alert('Error', message);
     } finally {
@@ -89,14 +124,14 @@ export default function RegisterScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
           ]}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps={keyboardTapBehavior}
           showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
         >
           <View style={styles.header}>
             <Text style={styles.logo}>💘</Text>
@@ -173,9 +208,14 @@ export default function RegisterScreen({ navigation }) {
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Registrando...' : 'Registrarme'}
-              </Text>
+              {loading ? (
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={styles.buttonText}>Registrando...</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>Registrarme</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -188,7 +228,6 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -267,6 +306,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   linkButton: {
     marginTop: 20,
