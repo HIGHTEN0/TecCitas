@@ -10,7 +10,7 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ export default function RegisterScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const keyboardTapBehavior = Platform.OS === 'web' ? 'always' : 'handled';
 
   const isValidInstitutionalEmail = (email) => {
     const validDomains = [
@@ -89,14 +90,14 @@ export default function RegisterScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
           ]}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps={keyboardTapBehavior}
           showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
         >
           <View style={styles.header}>
             <Text style={styles.logo}>💘</Text>
@@ -173,9 +174,14 @@ export default function RegisterScreen({ navigation }) {
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Registrando...' : 'Registrarme'}
-              </Text>
+              {loading ? (
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={styles.buttonText}>Registrando...</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>Registrarme</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -188,7 +194,6 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -267,6 +272,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   linkButton: {
     marginTop: 20,
