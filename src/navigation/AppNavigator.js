@@ -54,8 +54,18 @@ function MatchesStack() {
 }
 
 // Main Tabs con Safe Area
+// Main Tabs con Safe Area
 function MainTabs() {
   const insets = useSafeAreaInsets();
+
+  // Detectar plataforma específica
+  const isIOS = Platform.OS === 'ios';
+  const isWeb = Platform.OS === 'web';
+  // Detectar iOS en Web (iPhone/iPad) para ajustar layout
+  const isIOSWeb = isWeb && (typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent));
+
+  // Usar layout tipo iOS si es nativo o si es web en dispositivo iOS
+  const useIOSLayout = isIOS || isIOSWeb;
 
   return (
     <Tab.Navigator
@@ -66,8 +76,9 @@ function MainTabs() {
           borderTopWidth: 1,
           borderTopColor: '#f0f0f0',
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 10,
-          height: Platform.OS === 'ios' ? 85 : 70 + insets.bottom,
+          // Ajuste específico: iOS Web necesita más altura igual que Nativo
+          paddingBottom: useIOSLayout ? (isIOS ? insets.bottom : 20) : insets.bottom + 10,
+          height: useIOSLayout ? 85 : 70 + insets.bottom,
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
@@ -79,7 +90,7 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
-          marginBottom: Platform.OS === 'ios' ? 0 : 8,
+          marginBottom: useIOSLayout ? 0 : 8,
         },
       }}
     >

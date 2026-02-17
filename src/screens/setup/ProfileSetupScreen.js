@@ -5,13 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   Image,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
@@ -43,7 +43,7 @@ export default function ProfileSetupScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tus fotos');
+      showAlert('Permiso denegado', 'Necesitamos acceso a tus fotos');
       return;
     }
 
@@ -63,7 +63,7 @@ export default function ProfileSetupScreen() {
   //  Subir imagen a ImgBB
   const uploadImageToImgBB = async () => {
     if (!image || !image.base64) {
-      Alert.alert('Error', 'No se pudo procesar la imagen');
+      showAlert('Error', 'No se pudo procesar la imagen');
       return null;
     }
 
@@ -93,7 +93,7 @@ export default function ProfileSetupScreen() {
       }
     } catch (error) {
       console.error('❌ Error uploading to ImgBB:', error);
-      Alert.alert('Error', 'No se pudo subir la imagen. Intenta de nuevo.');
+      showAlert('Error', 'No se pudo subir la imagen. Intenta de nuevo.');
       return null;
     }
   };
@@ -101,27 +101,27 @@ export default function ProfileSetupScreen() {
   const handleSaveProfile = async () => {
     // Validaciones
     if (!name.trim()) {
-      Alert.alert('Error', 'Ingresa tu nombre');
+      showAlert('Error', 'Ingresa tu nombre');
       return;
     }
     if (!age || parseInt(age) < 18 || parseInt(age) > 100) {
-      Alert.alert('Error', 'Ingresa una edad válida (18+)');
+      showAlert('Error', 'Ingresa una edad válida (18+)');
       return;
     }
     if (!career) {
-      Alert.alert('Error', 'Selecciona tu carrera');
+      showAlert('Error', 'Selecciona tu carrera');
       return;
     }
     if (!gender) {
-      Alert.alert('Error', 'Selecciona tu género');
+      showAlert('Error', 'Selecciona tu género');
       return;
     }
     if (!interestedIn) {
-      Alert.alert('Error', 'Selecciona en quién estás interesado/a');
+      showAlert('Error', 'Selecciona en quién estás interesado/a');
       return;
     }
     if (!image) {
-      Alert.alert('Error', 'Sube una foto de perfil');
+      showAlert('Error', 'Sube una foto de perfil');
       return;
     }
 
@@ -151,10 +151,10 @@ export default function ProfileSetupScreen() {
       await setDoc(doc(db, 'users', user.uid), profileData);
       setUserProfile(profileData);
 
-      Alert.alert('¡Perfil creado!', 'Ya puedes empezar a conocer gente 💘');
+      showAlert('¡Perfil creado!', 'Ya puedes empezar a conocer gente 💘');
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'No se pudo guardar tu perfil');
+      showAlert('Error', 'No se pudo guardar tu perfil');
     } finally {
       setLoading(false);
     }

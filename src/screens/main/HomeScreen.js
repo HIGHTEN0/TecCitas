@@ -6,10 +6,10 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Alert,
   Animated,
   PanResponder,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   collection,
@@ -165,7 +165,7 @@ export default function HomeScreen({ navigation }) {
       setCurrentIndex(0);
     } catch (error) {
       console.error('❌ Error fetching profiles:', error);
-      Alert.alert('Error', 'No se pudieron cargar los perfiles');
+      showAlert('Error', 'No se pudieron cargar los perfiles');
     } finally {
       setLoading(false);
     }

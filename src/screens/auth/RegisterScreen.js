@@ -5,16 +5,23 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+} from 'firebase/auth';
 import { auth } from '../../config/firebase';
 
 export default function RegisterScreen({ navigation }) {
@@ -25,6 +32,7 @@ export default function RegisterScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const keyboardTapBehavior = Platform.OS === 'web' ? 'always' : 'handled';
 
   const isValidInstitutionalEmail = (email) => {
     const validDomains = [
@@ -34,40 +42,89 @@ export default function RegisterScreen({ navigation }) {
     return validDomains.some(domain => email.toLowerCase().endsWith(domain));
   };
 
+  const ensureWebAuthPersistence = async () => {
+    if (Platform.OS !== 'web') return;
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      return;
+    } catch (error) {
+      console.warn('⚠️ No se pudo usar localPersistence, usando sessionPersistence', error);
+    }
+
+    try {
+      await setPersistence(auth, browserSessionPersistence);
+      return;
+    } catch (error) {
+      console.warn('⚠️ No se pudo usar sessionPersistence, usando inMemoryPersistence', error);
+    }
+
+    await setPersistence(auth, inMemoryPersistence);
+  };
+
+  // Timeout para la persistencia (iOS a veces se cuelga con localStorage)
+  const setPersistenceWithTimeout = async () => {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Persistence timeout')), 3000)
+    );
+    try {
+      await Promise.race([ensureWebAuthPersistence(), timeoutPromise]);
+    } catch (error) {
+      console.warn('⚠️ Persistence setup issues (ignoring):', error);
+    }
+  };
+
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Por favor llena todos los campos');
+    // 1. Trim inputs para evitar espacios fantasma (común en iOS)
+    const cleanEmail = email.trim();
+    const cleanPassword = password; // Contraseñas no se trimmean usualmente, pero podríamos si quisiéramos ser permisivos
+
+    if (!cleanEmail || !cleanPassword || !confirmPassword) {
+      showAlert('Error', 'Por favor llena todos los campos');
       return;
     }
 
-    if (!isValidInstitutionalEmail(email)) {
-      Alert.alert(
+    // 2. Validación de correo institucional
+    if (!isValidInstitutionalEmail(cleanEmail)) {
+      showAlert(
         'Correo no válido',
         'Debes usar tu correo institucional del TecNM Delicias'
       );
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+    if (cleanPassword.length < 6) {
+      showAlert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+    if (cleanPassword !== confirmPassword) {
+      showAlert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
-    Keyboard.dismiss();
-    setLoading(true);
+    // 3. Safeguard Keyboard.dismiss
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      Keyboard.dismiss();
+    } catch (e) {
+      console.warn('Keyboard dismiss failed (ignoring)', e);
+    }
+
+    setLoading(true);
+
+    try {
+      // 4. Intentar persistencia con timeout para evitar freeze
+      if (Platform.OS === 'web') {
+        await setPersistenceWithTimeout();
+      }
+
+      // 5. Crear usuario
+      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       await sendEmailVerification(userCredential.user);
 
-      Alert.alert(
+      showAlert(
         '¡Registro exitoso! 📧',
-        'Te enviamos un correo de verificación. Revisa tu bandeja de entrada (y spam).',
-        [{ text: 'Entendido' }]
+        'Te enviamos un correo de verificación. Revisa tu bandeja de entrada (y spam).'
       );
     } catch (error) {
       let message = 'Error al registrarse';
@@ -77,8 +134,14 @@ export default function RegisterScreen({ navigation }) {
         message = 'Correo electrónico inválido';
       } else if (error.code === 'auth/weak-password') {
         message = 'La contraseña es muy débil';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Sin conexión. Revisa tu internet e intenta de nuevo.';
+      } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
+        message = 'Tu navegador no permite el registro en este modo. Intenta abrirlo en Safari normal (no privado).';
+      } else if (error.code) {
+        message = `No se pudo registrar (${error.code}).`;
       }
-      Alert.alert('Error', message);
+      showAlert('Error', message);
     } finally {
       setLoading(false);
     }
@@ -89,106 +152,110 @@ export default function RegisterScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.logo}>💘</Text>
-            <Text style={styles.title}>Crear Cuenta</Text>
-            <Text style={styles.subtitle}>Solo para alumnos del TecNM Delicias</Text>
-          </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
+        ]}
+        keyboardShouldPersistTaps={keyboardTapBehavior}
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <View style={styles.header}>
+          <Text style={styles.logo}>💘</Text>
+          <Text style={styles.title}>Crear Cuenta</Text>
+          <Text style={styles.subtitle}>Solo para alumnos del TecNM Delicias</Text>
+        </View>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Correo Institucional</Text>
+        <View style={styles.form}>
+          <Text style={styles.label}>Correo Institucional</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="tucorreo@delicias.tecnm.mx"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+          />
+
+          <Text style={styles.label}>Contraseña</Text>
+          <View style={styles.passwordRow}>
             <TextInput
-              style={styles.input}
-              placeholder="tucorreo@delicias.tecnm.mx"
+              style={[styles.input, styles.inputWithIcon]}
+              placeholder="Mínimo 6 caracteres"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
               returnKeyType="next"
             />
-
-            <Text style={styles.label}>Contraseña</Text>
-            <View style={styles.passwordRow}>
-              <TextInput
-                style={[styles.input, styles.inputWithIcon]}
-                placeholder="Mínimo 6 caracteres"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                returnKeyType="next"
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword((prev) => !prev)}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>Confirmar Contraseña</Text>
-            <View style={styles.passwordRow}>
-              <TextInput
-                style={[styles.input, styles.inputWithIcon]}
-                placeholder="Repite tu contraseña"
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleRegister}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowConfirmPassword((prev) => !prev)}
-                accessibilityRole="button"
-                accessibilityLabel={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleRegister}
-              disabled={loading}
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Registrando...' : 'Registrarme'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.linkText}>
-                ¿Ya tienes cuenta? <Text style={styles.linkTextBold}>Inicia sesión</Text>
-              </Text>
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#666"
+              />
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+
+          <Text style={styles.label}>Confirmar Contraseña</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.inputWithIcon]}
+              placeholder="Repite tu contraseña"
+              placeholderTextColor="#999"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              returnKeyType="done"
+              onSubmitEditing={handleRegister}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowConfirmPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              <Ionicons
+                name={showConfirmPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#666"
+              />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <View style={styles.loadingContent}>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.buttonText}>Registrando...</Text>
+              </View>
+            ) : (
+              <Text style={styles.buttonText}>Registrarme</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.linkText}>
+              ¿Ya tienes cuenta? <Text style={styles.linkTextBold}>Inicia sesión</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -267,6 +334,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   linkButton: {
     marginTop: 20,

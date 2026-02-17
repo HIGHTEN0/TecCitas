@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   Modal,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
 } from 'react-native';
+import { showAlert, showConfirm } from '../../utils/alert';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tus fotos');
+      showAlert('Permiso denegado', 'Necesitamos acceso a tus fotos');
       return;
     }
 
@@ -98,22 +98,22 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('❌ Error uploading to ImgBB:', error);
-      Alert.alert('Error', 'No se pudo subir la imagen');
+      showAlert('Error', 'No se pudo subir la imagen');
       return userProfile.photoURL;
     }
   };
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'El nombre es requerido');
+      showAlert('Error', 'El nombre es requerido');
       return;
     }
     if (!age || parseInt(age) < 18 || parseInt(age) > 100) {
-      Alert.alert('Error', 'Ingresa una edad válida (18+)');
+      showAlert('Error', 'Ingresa una edad válida (18+)');
       return;
     }
     if (!career) {
-      Alert.alert('Error', 'Selecciona tu carrera');
+      showAlert('Error', 'Selecciona tu carrera');
       return;
     }
 
@@ -140,10 +140,10 @@ export default function ProfileScreen() {
       setNewPhoto(null);
       setEditing(false);
 
-      Alert.alert('¡Listo!', 'Tu perfil ha sido actualizado');
+      showAlert('¡Listo!', 'Tu perfil ha sido actualizado');
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'No se pudo actualizar tu perfil');
+      showAlert('Error', 'No se pudo actualizar tu perfil');
     } finally {
       setLoading(false);
     }
@@ -159,23 +159,20 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showConfirm(
       'Cerrar sesión',
       '¿Estás seguro de que quieres salir?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Salir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut(auth);
-            } catch (error) {
-              console.error('Error signing out:', error);
-            }
-          },
+      {
+        confirmText: 'Salir',
+        destructive: true,
+        onConfirm: async () => {
+          try {
+            await signOut(auth);
+          } catch (error) {
+            console.error('Error signing out:', error);
+          }
         },
-      ]
+      }
     );
   };
 
@@ -185,7 +182,7 @@ export default function ProfileScreen() {
 
   const confirmDeleteAccount = async () => {
     if (deleteConfirmText !== 'ELIMINAR') {
-      Alert.alert('Error', 'Escribe ELIMINAR para confirmar');
+      showAlert('Error', 'Escribe ELIMINAR para confirmar');
       return;
     }
 
@@ -198,21 +195,18 @@ export default function ProfileScreen() {
 
       // Si el error es de reautenticación
       if (error.code === 'auth/requires-recent-login') {
-        Alert.alert(
+        showConfirm(
           'Sesión expirada',
           'Por seguridad, necesitas volver a iniciar sesión antes de eliminar tu cuenta.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Cerrar sesión',
-              onPress: async () => {
-                await signOut(auth);
-              },
+          {
+            confirmText: 'Cerrar sesión',
+            onConfirm: async () => {
+              await signOut(auth);
             },
-          ]
+          }
         );
       } else {
-        Alert.alert('Error', 'No se pudo eliminar la cuenta. Intenta de nuevo.');
+        showAlert('Error', 'No se pudo eliminar la cuenta. Intenta de nuevo.');
       }
     } finally {
       setDeleting(false);

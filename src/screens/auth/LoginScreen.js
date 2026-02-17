@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Keyboard,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
@@ -24,15 +24,24 @@ export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Por favor llena todos los campos');
+    // 1. Trim email
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !password) {
+      showAlert('Error', 'Por favor llena todos los campos');
       return;
     }
 
-    Keyboard.dismiss();
+    // 2. Safe dismiss
+    try {
+      Keyboard.dismiss();
+    } catch (e) {
+      // ignore
+    }
+
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
     } catch (error) {
       let message = 'Error al iniciar sesión';
       if (error.code === 'auth/user-not-found') {
@@ -44,7 +53,7 @@ export default function LoginScreen({ navigation }) {
       } else if (error.code === 'auth/invalid-credential') {
         message = 'Credenciales inválidas';
       }
-      Alert.alert('Error', message);
+      showAlert('Error', message);
     } finally {
       setLoading(false);
     }
@@ -66,76 +75,76 @@ export default function LoginScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
       >
-          <View style={styles.header}>
-            <Text style={styles.logo}>💘</Text>
-            <Text style={styles.title}>TecCitas</Text>
-            <Text style={styles.subtitle}>TecNM Delicias</Text>
-          </View>
+        <View style={styles.header}>
+          <Text style={styles.logo}>💘</Text>
+          <Text style={styles.title}>TecCitas</Text>
+          <Text style={styles.subtitle}>TecNM Delicias</Text>
+        </View>
 
-          <View style={styles.form}>
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="tucorreo@delicias.tecnm.mx"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            autoComplete="email"
+            textContentType="username"
+            blurOnSubmit={false}
+            onSubmitEditing={() => passwordRef.current && passwordRef.current.focus()}
+          />
+
+          <View style={styles.passwordRow}>
             <TextInput
-              style={styles.input}
-              placeholder="tucorreo@delicias.tecnm.mx"
+              ref={passwordRef}
+              style={[styles.input, styles.inputWithIcon]}
+              placeholder="Contraseña"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-              autoComplete="email"
-              textContentType="username"
-              blurOnSubmit={false}
-              onSubmitEditing={() => passwordRef.current && passwordRef.current.focus()}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              returnKeyType="done"
+              autoComplete="password"
+              textContentType="password"
+              onSubmitEditing={handleLogin}
             />
-
-            <View style={styles.passwordRow}>
-              <TextInput
-                ref={passwordRef}
-                style={[styles.input, styles.inputWithIcon]}
-                placeholder="Contraseña"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                returnKeyType="done"
-                autoComplete="password"
-                textContentType="password"
-                onSubmitEditing={handleLogin}
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#666"
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword((prev) => !prev)}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => navigation.navigate('Register')}
-            >
-              <Text style={styles.linkText}>
-                ¿No tienes cuenta? <Text style={styles.linkTextBold}>Regístrate</Text>
-              </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => navigation.navigate('Register')}
+          >
+            <Text style={styles.linkText}>
+              ¿No tienes cuenta? <Text style={styles.linkTextBold}>Regístrate</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

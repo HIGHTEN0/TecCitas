@@ -4,8 +4,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -32,9 +32,9 @@ export default function VerifyEmailScreen() {
     try {
       setResendCooldown(60);
       await sendEmailVerification(user);
-      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada');
+      showAlert('Correo enviado', 'Revisa tu bandeja de entrada');
     } catch (error) {
-      Alert.alert('Error', 'Espera un momento antes de reenviar el correo');
+      showAlert('Error', 'Espera un momento antes de reenviar el correo');
     } finally {
       setSending(false);
     }
@@ -44,16 +44,16 @@ export default function VerifyEmailScreen() {
     try {
       await user.reload();
       if (user.emailVerified) {
-        Alert.alert(
+        showAlert(
           '¡Verificado!',
-          'Tu correo ha sido verificado. Inicia sesión para continuar.',
-          [{ text: 'OK', onPress: () => handleLogout() }]
+          'Tu correo ha sido verificado. Inicia sesión para continuar.'
         );
+        handleLogout();
       } else {
-        Alert.alert('Aún no verificado', 'Por favor verifica tu correo institucional');
+        showAlert('Aún no verificado', 'Por favor verifica tu correo institucional');
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo verificar el estado');
+      showAlert('Error', 'No se pudo verificar el estado');
     }
   };
 

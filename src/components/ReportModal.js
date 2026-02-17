@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  Alert,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 
@@ -37,13 +37,13 @@ export default function ReportModal({
 
   const handleSubmitReport = async () => {
     if (!selectedReason) {
-      Alert.alert('Error', 'Por favor selecciona un motivo');
+      showAlert('Error', 'Por favor selecciona un motivo');
       return;
     }
 
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) {
-      Alert.alert('Error', 'Debes iniciar sesión');
+      showAlert('Error', 'Debes iniciar sesión');
       return;
     }
 
@@ -78,13 +78,13 @@ export default function ReportModal({
         console.log('✅ Usuario bloqueado');
       }
 
-      Alert.alert(
+      showAlert(
         '✅ Reporte enviado',
         blockUser
           ? `Gracias por tu reporte. ${reportedUserName} ha sido bloqueado y ya no verás su perfil.`
-          : 'Gracias por tu reporte. Nuestro equipo lo revisará pronto.',
-        [{ text: 'OK', onPress: onClose }]
+          : 'Gracias por tu reporte. Nuestro equipo lo revisará pronto.'
       );
+      onClose();
 
       // Limpiar estado
       setSelectedReason(null);
@@ -93,7 +93,7 @@ export default function ReportModal({
 
     } catch (error) {
       console.error('❌ Error enviando reporte:', error);
-      Alert.alert('Error', 'No se pudo enviar el reporte. Intenta de nuevo.');
+      showAlert('Error', 'No se pudo enviar el reporte. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export default function ReportModal({
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Razones */}
             <Text style={styles.sectionTitle}>¿Por qué reportas a este usuario?</Text>
-            
+
             {REPORT_REASONS.map((reason) => (
               <TouchableOpacity
                 key={reason.id}
